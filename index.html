@@ -12,19 +12,15 @@
   Elements:  First 5 only  (H, He, Li, Be, B)
   Modes   :  Human vs Machine  |  Human vs Human
 
-  HOW TO RUN:
-    Just open this file in any browser (Chrome / Firefox / Edge).
-    No install, no server needed.
-
   CONTROLS:
     Human vs Machine
       – You play the BLUE snake
-      – Use  W A S D  or  Arrow keys  to move
+      – Use Arrow keys  to move
       – Robot plays the ORANGE snake automatically
 
     Human vs Human  (two people, one keyboard)
       – Player 1 (BLUE)   uses  W A S D
-      – Player 2 (ORANGE) uses  Arrow keys
+      – Player 2 (ORANGE) uses  Arrow keys   (bit confusing but doable with one computer unable to implement with another commputer)
 
   SCORING:
     – Eat an element orb → score = its atomic mass
@@ -35,9 +31,7 @@
   -->
 
   <style>
-    /* ============================================================
-       RESET & PAGE LAYOUT
-    ============================================================ */
+    /* RESET & PAGE LAYOUT */
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
@@ -66,15 +60,13 @@
       margin-bottom: 24px;
     }
 
-    /* ============================================================
-       SCREENS  –  only one is visible at a time
-    ============================================================ */
+    /* SCREENS  –  only one is visible at a time */
+    
     .screen { display: none; flex-direction: column; align-items: center; width: 100%; }
     .screen.active { display: flex; }
 
-    /* ============================================================
-       MENU SCREEN
-    ============================================================ */
+    /* MENU SCREEN */
+    
     .menu-card {
       background: #101828;
       border: 1px solid #1a3a5c;
@@ -138,9 +130,7 @@
       line-height: 1.8;
     }
 
-    /* ============================================================
-       GAME SCREEN
-    ============================================================ */
+    /* GAME SCREEN */
     .topbar {
       display: flex;
       align-items: center;
@@ -257,9 +247,7 @@
     /* Canvas wrapper so overlay can be positioned on top */
     .canvas-wrap { position: relative; }
 
-    /* ============================================================
-       RESULT SCREEN
-    ============================================================ */
+    /* RESULT SCREEN */
     .result-card {
       background: #101828;
       border: 1px solid #1a3a5c;
@@ -316,9 +304,7 @@
   <h1>ZARVEN</h1>
   <p class="subtitle">GAMIFIED PERIODIC TABLE · LEVEL 2 · PROTOTYPE</p>
 
-  <!-- ============================================================
-       SCREEN 1 – MENU
-  ============================================================ -->
+  <!--  SCREEN 1 – MENU -->
   <div class="screen active" id="menuScreen">
     <div class="menu-card">
 
@@ -354,9 +340,7 @@
     </div>
   </div>
 
-  <!-- ============================================================
-       SCREEN 2 – GAME
-  ============================================================ -->
+  <!-- SCREEN 2 – GAME -->
   <div class="screen" id="gameScreen">
 
     <!-- Scores + Timer bar -->
@@ -409,9 +393,7 @@
 
   </div>
 
-  <!-- ============================================================
-       SCREEN 3 – RESULT
-  ============================================================ -->
+  <!-- SCREEN 3 – RESULT -->
   <div class="screen" id="resultScreen">
     <div class="result-card">
       <h2 id="resultTitle">TIME'S UP!</h2>
@@ -436,12 +418,9 @@
   </div>
 
 
-  <!-- ============================================================
-       JAVASCRIPT  –  all game logic below
-  ============================================================ -->
+  <!--  JAVASCRIPT  –  all game logic below -->
   <script>
 
-  // ==============================================================
   // SECTION 1 – ELEMENT DATA
   // Only first 5 elements to keep it simple for the prototype.
   // Each element has:
@@ -451,7 +430,6 @@
   //   mass    = atomic mass (used for scoring and circle size)
   //   noble   = true means it is a Noble Gas (penalty orb)
   //   fact    = real-world use shown as a fun fact after eating
-  // ==============================================================
 
   const ELEMENTS = [
     {
@@ -459,7 +437,7 @@
       fact: 'Makes up water (H₂O) and powers the Sun!'
     },
     {
-      z: 2, sym: 'He', name: 'Helium', mass: 4, noble: true,
+      z: 2, sym: 'He', name: 'Helium', mass: 4, noble: true,     //noble gas
       fact: 'Fills balloons and cools MRI machines.'
     },
     {
@@ -476,13 +454,7 @@
     }
   ];
 
-  // Only noble gas in our set is Helium (z=2)
-  // Noble gases get a dashed silver circle and freeze the snake
-
-
-  // ==============================================================
   // SECTION 2 – CANVAS & GRID CONSTANTS
-  // ==============================================================
 
   const canvas = document.getElementById('board');
   const ctx    = canvas.getContext('2d');
@@ -491,20 +463,11 @@
   const COLS = canvas.width  / CELL;   // 36 columns
   const ROWS = canvas.height / CELL;   // 24 rows
 
-
-  // ==============================================================
   // SECTION 3 – DIRECTION SYSTEM
-  //
   // We use plain strings ('UP','DOWN','LEFT','RIGHT') for directions.
-  // WHY strings and not arrays?
-  //   JavaScript compares arrays by reference, NOT by value.
-  //   So  [0,-1] === [0,-1]  is  FALSE  (two different objects).
-  //   But  'UP'  === 'UP'   is  TRUE.
-  //   This was a bug in earlier versions – now fixed with strings.
-  // ==============================================================
-
   // OPPOSITE maps each direction to the one directly behind it.
   // We use this to prevent a snake reversing into itself.
+    
   const OPPOSITE = {
     UP: 'DOWN', DOWN: 'UP', LEFT: 'RIGHT', RIGHT: 'LEFT'
   };
@@ -518,11 +481,8 @@
     RIGHT: [ 1,  0]    // column increases
   };
 
-
-  // ==============================================================
   // SECTION 4 – GAME STATE VARIABLES
   // All variables that change during a game round live here.
-  // ==============================================================
 
   let gameMode = null;   // 'HvM' (Human vs Robot) or 'HvH' (Human vs Human)
 
@@ -560,11 +520,8 @@
   let running   = false;   // true once game loop is running
   let hudFadeId = null;    // setTimeout for fading the HUD message
 
-
-  // ==============================================================
   // SECTION 5 – MENU FUNCTIONS
   // Called from onclick attributes in the HTML above
-  // ==============================================================
 
   // Called when user clicks "Human vs Robot" or "Human vs Human"
   function pickMode(m) {
@@ -590,14 +547,11 @@
     }
   }
 
-
-  // ==============================================================
   // SECTION 6 – START / RESTART / MENU NAVIGATION
-  // ==============================================================
 
   // Main entry point – called by Start button and Play Again button
   function startGame() {
-    if (!gameMode) return;   // safety check
+    if (!gameMode) return;   
 
     // Set player 2 label based on mode
     const p2label = (gameMode === 'HvM') ? 'ROBOT' : 'PLAYER 2';
@@ -663,10 +617,7 @@
     canvas.focus();
   }
 
-
-  // ==============================================================
   // SECTION 7 – COUNTDOWN  (3 … 2 … 1 … GO!)
-  // ==============================================================
 
   // n = current number to show; callback = function to call after GO!
   function runCountdown(n, callback) {
@@ -694,10 +645,7 @@
     setTimeout(() => runCountdown(n - 1, callback), 800);
   }
 
-
-  // ==============================================================
   // SECTION 8 – START / STOP GAME INTERVALS
-  // ==============================================================
 
   function beginGame() {
     running = true;
@@ -728,12 +676,9 @@
     clearInterval(nobleInterval);
   }
 
-
-  // ==============================================================
   // SECTION 9 – MAIN GAME TICK
   // Called every 200ms by the loopInterval.
   // Order: read input → move snakes → check board → draw
-  // ==============================================================
 
   function gameTick() {
     if (!running) return;
@@ -769,12 +714,9 @@
     refreshHUD();
   }
 
-
-  // ==============================================================
   // SECTION 10 – SNAKE MOVEMENT
   // Moves snake one cell in direction dir.
   // playerNum = 1 or 2, used for scoring and death handling.
-  // ==============================================================
 
   function moveSnake(snake, dir, playerNum) {
     // Lock the direction into the snake object
@@ -823,10 +765,7 @@
     }
   }
 
-
-  // ==============================================================
   // SECTION 11 – EATING AN ORB
-  // ==============================================================
 
   function eatOrb(snake, orb, playerNum) {
     const el = orb.elem;
@@ -857,10 +796,7 @@
     showMessage(`⚛  ${el.sym} – ${el.name}  (mass ${el.mass})  |  ${el.fact}`);
   }
 
-
-  // ==============================================================
   // SECTION 12 – DEATH AND RESPAWN
-  // ==============================================================
 
   function handleDeath(snake, playerNum) {
     if (playerNum === 1) {
@@ -894,17 +830,12 @@
     if (!snake1.alive && !snake2.alive) endGame('dead');
   }
 
-
-  // ==============================================================
   // SECTION 13 – ROBOT AI
-  //
   // Simple greedy strategy:
   //   1. Find the heaviest non-noble orb on the board
   //   2. Figure out which direction moves the head closer to it
   //   3. Pick the first safe direction from that preference list
-  //
   // "Safe" means: not reversing, not a wall, not self-collision
-  // ==============================================================
 
   function robotDecide() {
     const head = snake2.body[0];
@@ -958,10 +889,7 @@
     }
   }
 
-
-  // ==============================================================
   // SECTION 14 – ORB SPAWNING
-  // ==============================================================
 
   // Spawn n normal element orbs at random free cells
   function spawnOrbs(n) {
@@ -1009,25 +937,8 @@
     return null;   // could not find free cell
   }
 
-
-  // ==============================================================
   // SECTION 15 – KEYBOARD INPUT
-  //
-  // THE KEY FIX (compared to earlier broken versions):
-  //
-  //   1. We listen on `document` (not just canvas), so focus
-  //      location doesn't matter – keys always register.
-  //
-  //   2. In HvM mode, BOTH wasd AND arrow keys move the human
-  //      snake (snake1). Arrow keys no longer go to the robot.
-  //
-  //   3. pushToQueue() prevents direct reversal by checking the
-  //      last item IN the queue (not snake.dir which may be stale).
-  //      This was the main bug causing the human to be unresponsive.
-  // ==============================================================
 
-  // Safely add a new direction to a queue.
-  // Blocks the move only if it directly reverses the last queued direction.
   function pushToQueue(queue, currentDir, newDir) {
     // Use the last queued direction if available, otherwise current direction
     const lastDir = (queue.length > 0) ? queue[queue.length - 1] : currentDir;
@@ -1047,7 +958,6 @@
     const key = event.key;
 
     if (gameMode === 'HvM') {
-      // ----------------------------------------------------------
       // Human vs Robot:
       // Human (snake1) uses BOTH wasd AND arrow keys
       // Robot controls snake2 automatically – no key input for it
@@ -1085,9 +995,7 @@
   }
 
 
-  // ==============================================================
   // SECTION 16 – DRAWING (Canvas rendering)
-  // ==============================================================
 
   function drawEverything() {
     // ---- Background: checkerboard pattern ----
@@ -1206,11 +1114,8 @@
       }
     });
   }
-
-
-  // ==============================================================
+    
   // SECTION 17 – END GAME
-  // ==============================================================
 
   function endGame(reason) {
     stopGame();
@@ -1240,11 +1145,8 @@
     setTimeout(() => showScreen('resultScreen'), 700);
   }
 
-
-  // ==============================================================
   // SECTION 18 – HUD MESSAGE
   // Shows element fact for 2.5 seconds then fades out
-  // ==============================================================
 
   function showMessage(text) {
     const el = document.getElementById('hud');
@@ -1262,21 +1164,15 @@
     document.getElementById('lives2').textContent = '❤️'.repeat(Math.max(0, lives2));
   }
 
-
-  // ==============================================================
   // SECTION 19 – SCREEN SWITCHER
   // Shows one screen, hides all others
-  // ==============================================================
 
   function showScreen(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById(id).classList.add('active');
   }
 
-
-  // ==============================================================
   // SECTION 20 – UTILITY FUNCTIONS
-  // ==============================================================
 
   // Random integer: min (inclusive) to max (exclusive)
   function randomInt(min, max) {
