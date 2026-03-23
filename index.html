@@ -1,0 +1,1323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ZARVEN – Assignment 1 Prototype</title>
+
+  <!--
+  ================================================================
+  ZARVEN  –  Assignment 1 Prototype
+  Topic   :  Gamified Periodic Table Learning Platform
+  Level   :  Level 2 – "Mass Matters" (snake game)
+  Elements:  First 5 only  (H, He, Li, Be, B)
+  Modes   :  Human vs Machine  |  Human vs Human
+
+  HOW TO RUN:
+    Just open this file in any browser (Chrome / Firefox / Edge).
+    No install, no server needed.
+
+  CONTROLS:
+    Human vs Machine
+      – You play the BLUE snake
+      – Use  W A S D  or  Arrow keys  to move
+      – Robot plays the ORANGE snake automatically
+
+    Human vs Human  (two people, one keyboard)
+      – Player 1 (BLUE)   uses  W A S D
+      – Player 2 (ORANGE) uses  Arrow keys
+
+  SCORING:
+    – Eat an element orb → score = its atomic mass
+    – Heavier element = bigger circle = more points
+    – Noble Gas (dashed circle) = frozen for 2 seconds!
+    – 60 second timer, 3 lives each
+  ================================================================
+  -->
+
+  <style>
+    /* ============================================================
+       RESET & PAGE LAYOUT
+    ============================================================ */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0a0f1a;
+      color: #cde6ff;
+      font-family: 'Courier New', monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      padding: 20px 10px;
+    }
+
+    h1 {
+      font-size: 2rem;
+      letter-spacing: 6px;
+      color: #00ccff;
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      font-size: 0.75rem;
+      color: #4a7a9b;
+      letter-spacing: 3px;
+      margin-bottom: 24px;
+    }
+
+    /* ============================================================
+       SCREENS  –  only one is visible at a time
+    ============================================================ */
+    .screen { display: none; flex-direction: column; align-items: center; width: 100%; }
+    .screen.active { display: flex; }
+
+    /* ============================================================
+       MENU SCREEN
+    ============================================================ */
+    .menu-card {
+      background: #101828;
+      border: 1px solid #1a3a5c;
+      border-radius: 14px;
+      padding: 32px 40px;
+      max-width: 480px;
+      width: 100%;
+      text-align: center;
+    }
+
+    .menu-card p {
+      color: #4a7a9b;
+      font-size: 0.82rem;
+      line-height: 1.7;
+      margin-bottom: 28px;
+    }
+
+    /* Mode buttons */
+    .mode-row { display: flex; gap: 14px; justify-content: center; margin-bottom: 28px; }
+
+    .mode-btn {
+      flex: 1;
+      padding: 18px 10px;
+      background: #0a0f1a;
+      border: 1.5px solid #1a3a5c;
+      border-radius: 10px;
+      color: #cde6ff;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .mode-btn:hover  { border-color: #00ccff; }
+    /* selected = highlighted in cyan */
+    .mode-btn.active { border-color: #00ccff; background: rgba(0,204,255,0.08); color: #00ccff; }
+
+    .mode-btn .big { font-size: 1.6rem; display: block; margin-bottom: 6px; }
+
+    /* Start button */
+    .start-btn {
+      width: 100%;
+      padding: 14px;
+      background: #00ccff;
+      color: #0a0f1a;
+      border: none;
+      border-radius: 10px;
+      font-family: 'Courier New', monospace;
+      font-size: 1rem;
+      font-weight: bold;
+      letter-spacing: 3px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      margin-bottom: 20px;
+    }
+    .start-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .start-btn:not(:disabled):hover { opacity: 0.85; }
+
+    .controls-note {
+      font-size: 0.72rem;
+      color: #4a7a9b;
+      line-height: 1.8;
+    }
+
+    /* ============================================================
+       GAME SCREEN
+    ============================================================ */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 720px;
+      max-width: 100%;
+      margin-bottom: 10px;
+      gap: 10px;
+    }
+
+    /* Score box for each player */
+    .score-box {
+      background: #101828;
+      border: 1px solid #1a3a5c;
+      border-radius: 8px;
+      padding: 6px 16px;
+      text-align: center;
+      min-width: 110px;
+    }
+    .score-box .name  { font-size: 0.62rem; letter-spacing: 2px; margin-bottom: 2px; }
+    .score-box .pts   { font-size: 1.4rem; font-weight: bold; }
+    .score-box .lives { font-size: 0.75rem; margin-top: 2px; }
+
+    /* Blue = Player 1 / Human */
+    .score-box.blue .name { color: #1a8fff; }
+    .score-box.blue .pts  { color: #1a8fff; }
+
+    /* Orange = Player 2 / Robot */
+    .score-box.orange .name { color: #ff6b35; }
+    .score-box.orange .pts  { color: #ff6b35; }
+
+    /* Timer in the centre */
+    .timer-box {
+      background: #101828;
+      border: 1.5px solid #ff6b35;
+      border-radius: 8px;
+      padding: 6px 20px;
+      text-align: center;
+    }
+    .timer-box .label { font-size: 0.6rem; color: #4a7a9b; letter-spacing: 2px; }
+    .timer-box .time  { font-size: 1.8rem; font-weight: bold; color: #ff6b35; }
+    .timer-box .time.red { color: #e24b4a; animation: blink 0.5s infinite alternate; }
+
+    @keyframes blink { from { opacity: 1; } to { opacity: 0.3; } }
+
+    /* The canvas itself */
+    #board {
+      display: block;
+      border: 1px solid #1a3a5c;
+      border-radius: 8px;
+      background: #060d1a;
+      cursor: default;
+    }
+
+    /* HUD message (element info shown after eating) */
+    #hud {
+      margin-top: 8px;
+      height: 24px;           /* fixed height so layout doesn't jump */
+      font-size: 0.78rem;
+      color: #00ccff;
+      letter-spacing: 1px;
+      text-align: center;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    /* On-screen arrow buttons for mobile / mouse play */
+    .dpad {
+      display: grid;
+      grid-template-columns: repeat(3, 44px);
+      grid-template-rows:    repeat(3, 44px);
+      gap: 4px;
+      margin-top: 12px;
+    }
+    .dpad-btn {
+      width: 44px; height: 44px;
+      background: #101828;
+      border: 1px solid #1a8fff;
+      color: #1a8fff;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      /* touch-action: manipulation prevents double-tap zoom on mobile */
+      touch-action: manipulation;
+      user-select: none;
+    }
+    .dpad-btn:active { background: rgba(26,143,255,0.25); }
+    .dpad-note { font-size: 0.65rem; color: #4a7a9b; margin-top: 6px; }
+
+    /* Countdown overlay sits on top of canvas */
+    #countdown-overlay {
+      display: none;               /* hidden by default */
+      position: absolute;
+      inset: 0;
+      align-items: center;
+      justify-content: center;
+      background: rgba(5, 10, 18, 0.72);
+      border-radius: 8px;
+      z-index: 10;
+    }
+    #countdown-overlay.show { display: flex; }
+    #countdown-num {
+      font-size: 6rem;
+      font-weight: bold;
+      color: #00ccff;
+      animation: pop 0.7s ease-out;
+    }
+    @keyframes pop {
+      0%   { transform: scale(2.5); opacity: 0; }
+      60%  { transform: scale(1);   opacity: 1; }
+      100% { transform: scale(0.9); opacity: 0.9; }
+    }
+
+    /* Canvas wrapper so overlay can be positioned on top */
+    .canvas-wrap { position: relative; }
+
+    /* ============================================================
+       RESULT SCREEN
+    ============================================================ */
+    .result-card {
+      background: #101828;
+      border: 1px solid #1a3a5c;
+      border-radius: 14px;
+      padding: 40px 48px;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+    }
+    .result-card h2   { font-size: 1.8rem; color: #00ccff; margin-bottom: 8px; }
+    .result-card .who { font-size: 0.9rem; letter-spacing: 3px; margin-bottom: 28px; color: #cde6ff; }
+
+    .score-row { display: flex; gap: 16px; justify-content: center; margin-bottom: 28px; }
+    .res-box {
+      background: #0a0f1a;
+      border: 1px solid #1a3a5c;
+      border-radius: 10px;
+      padding: 20px 32px;
+    }
+    .res-box.winner { border-color: #39ff14; }
+    .res-box .rname { font-size: 0.65rem; letter-spacing: 2px; margin-bottom: 8px; }
+    .res-box .rscore { font-size: 2.4rem; font-weight: bold; }
+    .res-box.blue .rname  { color: #1a8fff; }
+    .res-box.blue .rscore { color: #1a8fff; }
+    .res-box.orange .rname  { color: #ff6b35; }
+    .res-box.orange .rscore { color: #ff6b35; }
+
+    .btn-row { display: flex; gap: 12px; justify-content: center; }
+    .btn-back {
+      padding: 12px 24px;
+      background: transparent;
+      border: 1px solid #00ccff;
+      color: #00ccff;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .btn-again {
+      padding: 12px 24px;
+      background: #00ccff;
+      border: none;
+      color: #0a0f1a;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      font-weight: bold;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>ZARVEN</h1>
+  <p class="subtitle">GAMIFIED PERIODIC TABLE · LEVEL 2 · PROTOTYPE</p>
+
+  <!-- ============================================================
+       SCREEN 1 – MENU
+  ============================================================ -->
+  <div class="screen active" id="menuScreen">
+    <div class="menu-card">
+
+      <p>
+        Eat element orbs to score points.<br>
+        Heavier elements = bigger circles = more points.<br>
+        Avoid noble gases (dashed circle) – they freeze you!<br><br>
+        <strong style="color:#cde6ff">Elements used: H · He · Li · Be · B  (Z 1–5)</strong>
+      </p>
+
+      <!-- Mode selection -->
+      <div class="mode-row">
+        <button class="mode-btn" id="btnHvM" onclick="pickMode('HvM')">
+          <span class="big">🤖</span>
+          Human vs<br>Robot
+        </button>
+        <button class="mode-btn" id="btnHvH" onclick="pickMode('HvH')">
+          <span class="big">⚔️</span>
+          Human vs<br>Human
+        </button>
+      </div>
+
+      <!-- Start button (disabled until mode is chosen) -->
+      <button class="start-btn" id="startBtn" onclick="startGame()" disabled>
+        ▶  START GAME
+      </button>
+
+      <!-- Control instructions (updated when mode is picked) -->
+      <div class="controls-note" id="controlNote">
+        ← Pick a mode above to see controls
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============================================================
+       SCREEN 2 – GAME
+  ============================================================ -->
+  <div class="screen" id="gameScreen">
+
+    <!-- Scores + Timer bar -->
+    <div class="topbar">
+
+      <div class="score-box blue">
+        <div class="name">PLAYER 1</div>
+        <div class="pts"  id="score1">0</div>
+        <div class="lives" id="lives1">❤️❤️❤️</div>
+      </div>
+
+      <div class="timer-box">
+        <div class="label">TIME</div>
+        <div class="time" id="timerDisplay">60</div>
+      </div>
+
+      <div class="score-box orange">
+        <div class="name" id="p2name">ROBOT</div>
+        <div class="pts"  id="score2">0</div>
+        <div class="lives" id="lives2">❤️❤️❤️</div>
+      </div>
+
+    </div>
+
+    <!-- Canvas + countdown overlay -->
+    <div class="canvas-wrap">
+      <canvas id="board" width="720" height="480"></canvas>
+
+      <div id="countdown-overlay">
+        <div id="countdown-num">3</div>
+      </div>
+    </div>
+
+    <!-- Element info message after eating -->
+    <div id="hud"></div>
+
+    <!-- On-screen D-pad buttons (controls Player 1 / Human) -->
+    <div class="dpad">
+      <div></div>
+      <button class="dpad-btn" onmousedown="dpad('UP')"    ontouchstart="dpad('UP')">▲</button>
+      <div></div>
+      <button class="dpad-btn" onmousedown="dpad('LEFT')"  ontouchstart="dpad('LEFT')">◀</button>
+      <div></div>
+      <button class="dpad-btn" onmousedown="dpad('RIGHT')" ontouchstart="dpad('RIGHT')">▶</button>
+      <div></div>
+      <button class="dpad-btn" onmousedown="dpad('DOWN')"  ontouchstart="dpad('DOWN')">▼</button>
+      <div></div>
+    </div>
+    <p class="dpad-note" id="dpadNote">or use  W A S D  /  Arrow keys  on keyboard</p>
+
+  </div>
+
+  <!-- ============================================================
+       SCREEN 3 – RESULT
+  ============================================================ -->
+  <div class="screen" id="resultScreen">
+    <div class="result-card">
+      <h2 id="resultTitle">TIME'S UP!</h2>
+      <div class="who" id="resultWinner">Player 1 wins!</div>
+
+      <div class="score-row">
+        <div class="res-box blue" id="resBox1">
+          <div class="rname">PLAYER 1</div>
+          <div class="rscore" id="finalScore1">0</div>
+        </div>
+        <div class="res-box orange" id="resBox2">
+          <div class="rname" id="resName2">ROBOT</div>
+          <div class="rscore" id="finalScore2">0</div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-back"  onclick="goMenu()">← Menu</button>
+        <button class="btn-again" onclick="startGame()">Play Again</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ============================================================
+       JAVASCRIPT  –  all game logic below
+  ============================================================ -->
+  <script>
+
+  // ==============================================================
+  // SECTION 1 – ELEMENT DATA
+  // Only first 5 elements to keep it simple for the prototype.
+  // Each element has:
+  //   z       = atomic number
+  //   sym     = chemical symbol
+  //   name    = full name
+  //   mass    = atomic mass (used for scoring and circle size)
+  //   noble   = true means it is a Noble Gas (penalty orb)
+  //   fact    = real-world use shown as a fun fact after eating
+  // ==============================================================
+
+  const ELEMENTS = [
+    {
+      z: 1, sym: 'H', name: 'Hydrogen', mass: 1, noble: false,
+      fact: 'Makes up water (H₂O) and powers the Sun!'
+    },
+    {
+      z: 2, sym: 'He', name: 'Helium', mass: 4, noble: true,
+      fact: 'Fills balloons and cools MRI machines.'
+    },
+    {
+      z: 3, sym: 'Li', name: 'Lithium', mass: 7, noble: false,
+      fact: 'Used in every phone and EV battery.'
+    },
+    {
+      z: 4, sym: 'Be', name: 'Beryllium', mass: 9, noble: false,
+      fact: 'Extremely light metal used in aerospace alloys.'
+    },
+    {
+      z: 5, sym: 'B', name: 'Boron', mass: 11, noble: false,
+      fact: 'Used in bulletproof vests and Pyrex glass!'
+    }
+  ];
+
+  // Only noble gas in our set is Helium (z=2)
+  // Noble gases get a dashed silver circle and freeze the snake
+
+
+  // ==============================================================
+  // SECTION 2 – CANVAS & GRID CONSTANTS
+  // ==============================================================
+
+  const canvas = document.getElementById('board');
+  const ctx    = canvas.getContext('2d');
+
+  const CELL = 20;               // each grid square is 20×20 pixels
+  const COLS = canvas.width  / CELL;   // 36 columns
+  const ROWS = canvas.height / CELL;   // 24 rows
+
+
+  // ==============================================================
+  // SECTION 3 – DIRECTION SYSTEM
+  //
+  // We use plain strings ('UP','DOWN','LEFT','RIGHT') for directions.
+  // WHY strings and not arrays?
+  //   JavaScript compares arrays by reference, NOT by value.
+  //   So  [0,-1] === [0,-1]  is  FALSE  (two different objects).
+  //   But  'UP'  === 'UP'   is  TRUE.
+  //   This was a bug in earlier versions – now fixed with strings.
+  // ==============================================================
+
+  // OPPOSITE maps each direction to the one directly behind it.
+  // We use this to prevent a snake reversing into itself.
+  const OPPOSITE = {
+    UP: 'DOWN', DOWN: 'UP', LEFT: 'RIGHT', RIGHT: 'LEFT'
+  };
+
+  // MOVE maps each direction string to a [dx, dy] movement vector.
+  // dx = change in x (column),  dy = change in y (row)
+  const MOVE = {
+    UP:    [ 0, -1],   // row decreases
+    DOWN:  [ 0,  1],   // row increases
+    LEFT:  [-1,  0],   // column decreases
+    RIGHT: [ 1,  0]    // column increases
+  };
+
+
+  // ==============================================================
+  // SECTION 4 – GAME STATE VARIABLES
+  // All variables that change during a game round live here.
+  // ==============================================================
+
+  let gameMode = null;   // 'HvM' (Human vs Robot) or 'HvH' (Human vs Human)
+
+  // Snake objects – each has:
+  //   body   = array of {x,y} positions, head is body[0]
+  //   dir    = current direction string
+  //   alive  = false when out of lives
+  //   frozen = true for 2 seconds after eating a noble gas
+  let snake1 = null;
+  let snake2 = null;
+
+  // nextDir holds the direction to apply on the NEXT game tick.
+  // It is set by keyboard input between ticks.
+  let nextDir1 = 'RIGHT';
+  let nextDir2 = 'LEFT';
+
+  // Input queues buffer up to 2 key presses between game ticks.
+  // Without a queue, if you press two keys before the next tick,
+  // only the last one would register.
+  let queue1 = [];
+  let queue2 = [];
+
+  let orbs    = [];   // element orbs currently on the board
+  let score1  = 0;
+  let score2  = 0;
+  let lives1  = 3;
+  let lives2  = 3;
+  let timer   = 60;   // countdown from 60 seconds
+
+  // interval handles (stored so we can stop them later)
+  let loopInterval  = null;   // main game loop
+  let clockInterval = null;   // 1-second timer
+  let nobleInterval = null;   // noble gas spawner
+
+  let running   = false;   // true once game loop is running
+  let hudFadeId = null;    // setTimeout for fading the HUD message
+
+
+  // ==============================================================
+  // SECTION 5 – MENU FUNCTIONS
+  // Called from onclick attributes in the HTML above
+  // ==============================================================
+
+  // Called when user clicks "Human vs Robot" or "Human vs Human"
+  function pickMode(m) {
+    gameMode = m;
+
+    // Highlight the chosen button, un-highlight the other
+    document.getElementById('btnHvM').classList.toggle('active', m === 'HvM');
+    document.getElementById('btnHvH').classList.toggle('active', m === 'HvH');
+
+    // Enable the Start button
+    document.getElementById('startBtn').disabled = false;
+
+    // Show correct control instructions
+    if (m === 'HvM') {
+      document.getElementById('controlNote').innerHTML =
+        'You are the <span style="color:#1a8fff">BLUE snake</span>.<br>' +
+        'Use <b>W A S D</b> or <b>Arrow keys</b> or the buttons on screen.<br>' +
+        'Robot controls the <span style="color:#ff6b35">ORANGE snake</span>.';
+    } else {
+      document.getElementById('controlNote').innerHTML =
+        'Player 1 (<span style="color:#1a8fff">BLUE</span>): <b>W A S D</b><br>' +
+        'Player 2 (<span style="color:#ff6b35">ORANGE</span>): <b>Arrow keys</b>';
+    }
+  }
+
+
+  // ==============================================================
+  // SECTION 6 – START / RESTART / MENU NAVIGATION
+  // ==============================================================
+
+  // Main entry point – called by Start button and Play Again button
+  function startGame() {
+    if (!gameMode) return;   // safety check
+
+    // Set player 2 label based on mode
+    const p2label = (gameMode === 'HvM') ? 'ROBOT' : 'PLAYER 2';
+    document.getElementById('p2name').textContent   = p2label;
+    document.getElementById('resName2').textContent = p2label;
+
+    // Update D-pad hint text
+    document.getElementById('dpadNote').textContent =
+      (gameMode === 'HvM')
+        ? 'Human (blue): WASD or Arrow keys or buttons above'
+        : 'P1 (blue): W A S D   |   P2 (orange): Arrow keys';
+
+    showScreen('gameScreen');
+    resetGame();
+    runCountdown(3, beginGame);
+  }
+
+  // Return to the main menu
+  function goMenu() {
+    stopGame();
+    showScreen('menuScreen');
+  }
+
+  // Reset all game state to starting values
+  function resetGame() {
+    score1 = 0;  score2 = 0;
+    lives1 = 3;  lives2 = 3;
+    timer  = 60;
+    orbs   = [];
+    queue1 = [];
+    queue2 = [];
+    running = false;
+
+    // ---- Create snake 1 (blue, starts left, moves right) ----
+    snake1 = {
+      body:   [ {x: 4, y: Math.floor(ROWS / 2)} ],
+      dir:    'RIGHT',
+      alive:  true,
+      frozen: false
+    };
+
+    // ---- Create snake 2 (orange, starts right, moves left) ----
+    snake2 = {
+      body:   [ {x: COLS - 5, y: Math.floor(ROWS / 2)} ],
+      dir:    'LEFT',
+      alive:  true,
+      frozen: false
+    };
+
+    nextDir1 = 'RIGHT';
+    nextDir2 = 'LEFT';
+
+    // Spawn 4 element orbs at random positions
+    spawnOrbs(4);
+
+    // Draw the initial frame
+    drawEverything();
+
+    // Refresh scores / lives display
+    refreshHUD();
+
+    // Focus the canvas so keyboard input works immediately
+    canvas.focus();
+  }
+
+
+  // ==============================================================
+  // SECTION 7 – COUNTDOWN  (3 … 2 … 1 … GO!)
+  // ==============================================================
+
+  // n = current number to show; callback = function to call after GO!
+  function runCountdown(n, callback) {
+    const overlay = document.getElementById('countdown-overlay');
+    const numEl   = document.getElementById('countdown-num');
+
+    overlay.classList.add('show');
+    numEl.textContent = (n > 0) ? String(n) : 'GO!';
+
+    // Restart CSS pop animation on each change
+    numEl.style.animation = 'none';
+    void numEl.offsetWidth;     // forces browser to reflow (restarts animation)
+    numEl.style.animation = '';
+
+    if (n <= 0) {
+      // Hide overlay and start the game after a short delay
+      setTimeout(() => {
+        overlay.classList.remove('show');
+        callback();
+      }, 500);
+      return;
+    }
+
+    // Recurse with n-1 after 800ms
+    setTimeout(() => runCountdown(n - 1, callback), 800);
+  }
+
+
+  // ==============================================================
+  // SECTION 8 – START / STOP GAME INTERVALS
+  // ==============================================================
+
+  function beginGame() {
+    running = true;
+    canvas.focus();   // ensure keyboard focus is on the canvas
+
+    // 1-second clock: counts down the timer
+    clockInterval = setInterval(() => {
+      timer--;
+      const el = document.getElementById('timerDisplay');
+      el.textContent = timer;
+      // Turn red and blink when under 10 seconds
+      el.className = (timer <= 10) ? 'time red' : 'time';
+      if (timer <= 0) endGame('time');
+    }, 1000);
+
+    // Main game loop: 200ms per tick = 5 moves per second
+    // This pace is comfortable for human players
+    loopInterval = setInterval(gameTick, 200);
+
+    // Spawn a noble gas every 15 seconds
+    nobleInterval = setInterval(spawnNoble, 15000);
+  }
+
+  function stopGame() {
+    running = false;
+    clearInterval(loopInterval);
+    clearInterval(clockInterval);
+    clearInterval(nobleInterval);
+  }
+
+
+  // ==============================================================
+  // SECTION 9 – MAIN GAME TICK
+  // Called every 200ms by the loopInterval.
+  // Order: read input → move snakes → check board → draw
+  // ==============================================================
+
+  function gameTick() {
+    if (!running) return;
+
+    // ---- Step 1: Apply buffered input for Human (snake1) ----
+    // Pull the next queued direction if there is one
+    if (queue1.length > 0) {
+      nextDir1 = queue1.shift();   // shift() removes and returns first item
+    }
+
+    // ---- Step 2: Decide snake2 direction ----
+    if (gameMode === 'HvM') {
+      // Robot: automatically pick best direction toward heaviest orb
+      if (snake2.alive && !snake2.frozen) {
+        robotDecide();   // sets nextDir2
+      }
+    } else {
+      // Human vs Human: pull from player 2's input queue
+      if (queue2.length > 0) {
+        nextDir2 = queue2.shift();
+      }
+    }
+
+    // ---- Step 3: Move snakes one cell forward ----
+    if (snake1.alive && !snake1.frozen) moveSnake(snake1, nextDir1, 1);
+    if (snake2.alive && !snake2.frozen) moveSnake(snake2, nextDir2, 2);
+
+    // ---- Step 4: Refill orbs if board runs low ----
+    if (orbs.filter(o => !o.noble).length < 2) spawnOrbs(2);
+
+    // ---- Step 5: Redraw everything ----
+    drawEverything();
+    refreshHUD();
+  }
+
+
+  // ==============================================================
+  // SECTION 10 – SNAKE MOVEMENT
+  // Moves snake one cell in direction dir.
+  // playerNum = 1 or 2, used for scoring and death handling.
+  // ==============================================================
+
+  function moveSnake(snake, dir, playerNum) {
+    // Lock the direction into the snake object
+    snake.dir = dir;
+
+    // Get the [dx, dy] movement vector for this direction
+    const [dx, dy] = MOVE[dir];
+
+    // Calculate new head position
+    const head = snake.body[0];
+    const newX = head.x + dx;
+    const newY = head.y + dy;
+
+    // ---- COLLISION CHECK 1: Wall ----
+    if (newX < 0 || newX >= COLS || newY < 0 || newY >= ROWS) {
+      handleDeath(snake, playerNum);
+      return;   // stop moving this snake this tick
+    }
+
+    // ---- COLLISION CHECK 2: Own body ----
+    if (snake.body.some(seg => seg.x === newX && seg.y === newY)) {
+      handleDeath(snake, playerNum);
+      return;
+    }
+
+    // ---- COLLISION CHECK 3: Other snake ----
+    const otherSnake = (playerNum === 1) ? snake2 : snake1;
+    if (otherSnake.alive && otherSnake.body.some(seg => seg.x === newX && seg.y === newY)) {
+      handleDeath(snake, playerNum);
+      return;
+    }
+
+    // ---- No collision: add new head position ----
+    snake.body.unshift({ x: newX, y: newY });
+
+    // ---- Check if head landed on an orb ----
+    const orbIndex = orbs.findIndex(o => o.x === newX && o.y === newY);
+    if (orbIndex !== -1) {
+      // Eat the orb: remove it from array and process effects
+      const eaten = orbs.splice(orbIndex, 1)[0];
+      eatOrb(snake, eaten, playerNum);
+      // Note: eatOrb grows the snake body, so we do NOT pop the tail here
+    } else {
+      // No orb: remove tail to keep snake the same length
+      snake.body.pop();
+    }
+  }
+
+
+  // ==============================================================
+  // SECTION 11 – EATING AN ORB
+  // ==============================================================
+
+  function eatOrb(snake, orb, playerNum) {
+    const el = orb.elem;
+
+    if (orb.noble) {
+      // ---- Noble Gas: freeze snake for 2 seconds ----
+      // No score, just a penalty
+      snake.frozen = true;
+      showMessage(`⚠  ${el.name} is a Noble Gas! Frozen for 2 seconds.`);
+      setTimeout(() => { snake.frozen = false; }, 2000);
+      return;
+    }
+
+    // ---- Normal element: grow snake + add score ----
+    // Growth = floor(atomic mass / 5), minimum 1 segment
+    // Heavier elements grow the snake more
+    const growBy = Math.max(1, Math.floor(el.mass / 5));
+    const tail   = snake.body[snake.body.length - 1];
+    for (let i = 0; i < growBy; i++) {
+      snake.body.push({ ...tail });   // add copies of the current tail
+    }
+
+    // Score = atomic mass value
+    if (playerNum === 1) score1 += el.mass;
+    else                 score2 += el.mass;
+
+    // Show element fact in the HUD for 2.5 seconds
+    showMessage(`⚛  ${el.sym} – ${el.name}  (mass ${el.mass})  |  ${el.fact}`);
+  }
+
+
+  // ==============================================================
+  // SECTION 12 – DEATH AND RESPAWN
+  // ==============================================================
+
+  function handleDeath(snake, playerNum) {
+    if (playerNum === 1) {
+      lives1--;
+      if (lives1 <= 0) {
+        snake.alive = false;   // out of lives: snake stays dead
+      } else {
+        // Respawn at starting position
+        snake.body   = [ {x: 4, y: Math.floor(ROWS / 2)} ];
+        snake.dir    = 'RIGHT';
+        snake.frozen = false;
+        queue1       = [];        // clear any buffered inputs
+        nextDir1     = 'RIGHT';
+      }
+    } else {
+      lives2--;
+      if (lives2 <= 0) {
+        snake.alive = false;
+      } else {
+        snake.body   = [ {x: COLS - 5, y: Math.floor(ROWS / 2)} ];
+        snake.dir    = 'LEFT';
+        snake.frozen = false;
+        queue2       = [];
+        nextDir2     = 'LEFT';
+      }
+    }
+
+    refreshHUD();
+
+    // If BOTH snakes are dead, end the game
+    if (!snake1.alive && !snake2.alive) endGame('dead');
+  }
+
+
+  // ==============================================================
+  // SECTION 13 – ROBOT AI
+  //
+  // Simple greedy strategy:
+  //   1. Find the heaviest non-noble orb on the board
+  //   2. Figure out which direction moves the head closer to it
+  //   3. Pick the first safe direction from that preference list
+  //
+  // "Safe" means: not reversing, not a wall, not self-collision
+  // ==============================================================
+
+  function robotDecide() {
+    const head = snake2.body[0];
+
+    // Get all normal (non-noble) orbs
+    const targets = orbs.filter(o => !o.noble);
+    if (targets.length === 0) return;   // nothing to aim for
+
+    // Pick the orb with the highest atomic mass
+    const target = targets.reduce((best, orb) =>
+      orb.elem.mass > best.elem.mass ? orb : best
+    );
+
+    // Distance from head to target in x and y
+    const dx = target.x - head.x;
+    const dy = target.y - head.y;
+
+    // Build a preference list:
+    //   Primary direction = whichever axis has larger distance
+    //   Secondary direction = the other axis
+    //   Fallback = all four directions
+    const pref = [];
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      pref.push(dx > 0 ? 'RIGHT' : 'LEFT');    // preferred: move in x
+      pref.push(dy > 0 ? 'DOWN'  : 'UP');      // secondary: move in y
+    } else {
+      pref.push(dy > 0 ? 'DOWN'  : 'UP');      // preferred: move in y
+      pref.push(dx > 0 ? 'RIGHT' : 'LEFT');    // secondary: move in x
+    }
+    pref.push('RIGHT', 'LEFT', 'UP', 'DOWN');  // fallback directions
+
+    // Try each direction in order, pick first safe one
+    for (const d of pref) {
+      // Rule 1: cannot reverse (would run into own neck)
+      if (d === OPPOSITE[snake2.dir]) continue;
+
+      // Calculate where head would go
+      const [vx, vy] = MOVE[d];
+      const nx = head.x + vx;
+      const ny = head.y + vy;
+
+      // Rule 2: must stay inside the board
+      if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) continue;
+
+      // Rule 3: must not hit own body
+      if (snake2.body.some(s => s.x === nx && s.y === ny)) continue;
+
+      // This direction is safe – use it
+      nextDir2 = d;
+      break;
+    }
+  }
+
+
+  // ==============================================================
+  // SECTION 14 – ORB SPAWNING
+  // ==============================================================
+
+  // Spawn n normal element orbs at random free cells
+  function spawnOrbs(n) {
+    for (let i = 0; i < n; i++) {
+      const pos = findFreeCell();
+      if (!pos) continue;   // no free cell found (very rare)
+
+      // Pick a random element from our 5 elements
+      const elem = ELEMENTS[randomInt(0, ELEMENTS.length)];
+      orbs.push({ x: pos.x, y: pos.y, elem: elem, noble: false });
+    }
+  }
+
+  // Spawn one noble gas orb (penalty orb)
+  function spawnNoble() {
+    if (!running) return;
+
+    // Find noble gas elements in our set (just Helium)
+    const nobles = ELEMENTS.filter(e => e.noble);
+    if (nobles.length === 0) return;
+
+    const elem = nobles[randomInt(0, nobles.length)];
+    const pos  = findFreeCell();
+    if (!pos) return;
+
+    const orb = { x: pos.x, y: pos.y, elem: elem, noble: true };
+    orbs.push(orb);
+
+    // Noble gas disappears after 8 seconds if not eaten
+    setTimeout(() => {
+      const index = orbs.indexOf(orb);
+      if (index > -1) orbs.splice(index, 1);
+    }, 8000);
+  }
+
+  // Find a grid cell that has no orb on it
+  function findFreeCell() {
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const x = randomInt(1, COLS - 1);
+      const y = randomInt(1, ROWS - 1);
+      if (!orbs.some(o => o.x === x && o.y === y)) {
+        return { x, y };
+      }
+    }
+    return null;   // could not find free cell
+  }
+
+
+  // ==============================================================
+  // SECTION 15 – KEYBOARD INPUT
+  //
+  // THE KEY FIX (compared to earlier broken versions):
+  //
+  //   1. We listen on `document` (not just canvas), so focus
+  //      location doesn't matter – keys always register.
+  //
+  //   2. In HvM mode, BOTH wasd AND arrow keys move the human
+  //      snake (snake1). Arrow keys no longer go to the robot.
+  //
+  //   3. pushToQueue() prevents direct reversal by checking the
+  //      last item IN the queue (not snake.dir which may be stale).
+  //      This was the main bug causing the human to be unresponsive.
+  // ==============================================================
+
+  // Safely add a new direction to a queue.
+  // Blocks the move only if it directly reverses the last queued direction.
+  function pushToQueue(queue, currentDir, newDir) {
+    // Use the last queued direction if available, otherwise current direction
+    const lastDir = (queue.length > 0) ? queue[queue.length - 1] : currentDir;
+
+    // Block direct reversal (e.g. going LEFT when last direction was RIGHT)
+    if (newDir === OPPOSITE[lastDir]) return;
+
+    // Only buffer up to 2 inputs ahead
+    if (queue.length < 2) queue.push(newDir);
+  }
+
+  // Attach keydown listener to document
+  // This fires regardless of which element currently has keyboard focus
+  document.addEventListener('keydown', function(event) {
+    if (!snake1) return;   // game not started yet
+
+    const key = event.key;
+
+    if (gameMode === 'HvM') {
+      // ----------------------------------------------------------
+      // Human vs Robot:
+      // Human (snake1) uses BOTH wasd AND arrow keys
+      // Robot controls snake2 automatically – no key input for it
+      // ----------------------------------------------------------
+      if (key === 'ArrowUp'    || key === 'w' || key === 'W') { event.preventDefault(); pushToQueue(queue1, snake1.dir, 'UP');    }
+      if (key === 'ArrowDown'  || key === 's' || key === 'S') { event.preventDefault(); pushToQueue(queue1, snake1.dir, 'DOWN');  }
+      if (key === 'ArrowLeft'  || key === 'a' || key === 'A') { event.preventDefault(); pushToQueue(queue1, snake1.dir, 'LEFT');  }
+      if (key === 'ArrowRight' || key === 'd' || key === 'D') { event.preventDefault(); pushToQueue(queue1, snake1.dir, 'RIGHT'); }
+
+    } else if (gameMode === 'HvH') {
+      // ----------------------------------------------------------
+      // Human vs Human:
+      // Player 1 (snake1) → WASD only
+      // Player 2 (snake2) → Arrow keys only
+      // ----------------------------------------------------------
+      if (key === 'w' || key === 'W') pushToQueue(queue1, snake1.dir, 'UP');
+      if (key === 's' || key === 'S') pushToQueue(queue1, snake1.dir, 'DOWN');
+      if (key === 'a' || key === 'A') pushToQueue(queue1, snake1.dir, 'LEFT');
+      if (key === 'd' || key === 'D') pushToQueue(queue1, snake1.dir, 'RIGHT');
+
+      if (snake2) {
+        if (key === 'ArrowUp')    { event.preventDefault(); pushToQueue(queue2, snake2.dir, 'UP');    }
+        if (key === 'ArrowDown')  { event.preventDefault(); pushToQueue(queue2, snake2.dir, 'DOWN');  }
+        if (key === 'ArrowLeft')  { event.preventDefault(); pushToQueue(queue2, snake2.dir, 'LEFT');  }
+        if (key === 'ArrowRight') { event.preventDefault(); pushToQueue(queue2, snake2.dir, 'RIGHT'); }
+      }
+    }
+  });
+
+  // On-screen D-pad button handler (used by onclick in HTML)
+  // Feeds direction straight into snake1's queue
+  function dpad(dir) {
+    if (!snake1) return;
+    pushToQueue(queue1, snake1.dir, dir);
+  }
+
+
+  // ==============================================================
+  // SECTION 16 – DRAWING (Canvas rendering)
+  // ==============================================================
+
+  function drawEverything() {
+    // ---- Background: checkerboard pattern ----
+    for (let x = 0; x < COLS; x++) {
+      for (let y = 0; y < ROWS; y++) {
+        ctx.fillStyle = (x + y) % 2 === 0 ? '#060d1a' : '#080f1e';
+        ctx.fillRect(x * CELL, y * CELL, CELL, CELL);
+      }
+    }
+
+    // ---- Draw all orbs ----
+    orbs.forEach(orb => drawOrb(orb));
+
+    // ---- Draw snakes ----
+    // Frozen snakes are drawn in a pale colour to show they are frozen
+    if (snake1 && snake1.alive) {
+      drawSnake(snake1, '#1a8fff', '#0a5fa0', snake1.frozen ? '#99ccff' : null);
+    }
+    if (snake2 && snake2.alive) {
+      drawSnake(snake2, '#ff6b35', '#aa3500', snake2.frozen ? '#ffbbaa' : null);
+    }
+  }
+
+  // Draw one element orb on the canvas
+  function drawOrb(orb) {
+    const cx = orb.x * CELL + CELL / 2;   // centre x of the cell
+    const cy = orb.y * CELL + CELL / 2;   // centre y of the cell
+    const el = orb.elem;
+
+    // Circle radius scales with atomic mass:
+    // heavier = bigger  (capped at nearly half a cell)
+    const radius = Math.min(CELL * 0.44, 3 + el.mass * 0.22);
+
+    if (orb.noble) {
+      // ---- Noble Gas: dashed silver circle ----
+      ctx.save();
+      ctx.setLineDash([3, 3]);          // dashed border
+      ctx.strokeStyle = '#888888';
+      ctx.lineWidth   = 1.5;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);              // reset dash
+
+      // Semi-transparent fill
+      ctx.fillStyle = 'rgba(130, 130, 130, 0.12)';
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Element symbol in grey
+      ctx.fillStyle    = '#aaaaaa';
+      ctx.font         = `bold ${Math.max(7, radius * 0.65)}px monospace`;
+      ctx.textAlign    = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(el.sym, cx, cy);
+      ctx.restore();
+      return;
+    }
+
+    // ---- Normal element: coloured glowing circle ----
+    // Colour shifts from blue (light) to green to red (heavy)
+    // based on atomic mass (1–11 in our range)
+    const t   = Math.min(1, el.mass / 11);   // 0 = lightest, 1 = heaviest
+    const col = t < 0.5
+      ? blendColor('#1a8fff', '#39bb22', t * 2)        // blue → green
+      : blendColor('#39bb22', '#e24b4a', (t - 0.5) * 2); // green → red
+
+    // Coloured ring
+    ctx.strokeStyle = col;
+    ctx.lineWidth   = 1.5;
+    // Semi-transparent fill
+    ctx.fillStyle   = col + '28';
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Element symbol (bold, same colour as ring)
+    ctx.fillStyle    = col;
+    ctx.font         = `bold ${Math.max(8, radius * 0.7)}px monospace`;
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(el.sym, cx, cy - radius * 0.1);
+
+    // Atomic mass in small grey text below symbol
+    ctx.fillStyle = '#888888';
+    ctx.font      = `${Math.max(6, radius * 0.42)}px monospace`;
+    ctx.fillText(el.mass, cx, cy + radius * 0.58);
+  }
+
+  // Draw one snake on the canvas
+  function drawSnake(snake, headColor, bodyColor, frozenColor) {
+    snake.body.forEach((segment, index) => {
+      const px = segment.x * CELL + 1;   // +1 for small gap between cells
+      const py = segment.y * CELL + 1;
+      const sz = CELL - 2;
+
+      // Head = full bright color; body gets slightly transparent + darker
+      ctx.fillStyle   = frozenColor || (index === 0 ? headColor : bodyColor);
+      ctx.globalAlpha = index === 0 ? 1.0 : Math.max(0.35, 0.85 - index * 0.015);
+
+      roundedRect(ctx, px, py, sz, sz, 4);
+      ctx.fill();
+      ctx.globalAlpha = 1.0;   // reset transparency
+
+      // Draw two small eyes on the head segment
+      if (index === 0) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+        ctx.beginPath();
+        ctx.arc(px + sz * 0.3, py + sz * 0.3, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(px + sz * 0.7, py + sz * 0.3, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    });
+  }
+
+
+  // ==============================================================
+  // SECTION 17 – END GAME
+  // ==============================================================
+
+  function endGame(reason) {
+    stopGame();
+
+    const p2label = (gameMode === 'HvM') ? 'Robot' : 'Player 2';
+
+    // Title
+    const title = (reason === 'time') ? "TIME'S UP!" : "GAME OVER";
+
+    // Winner message
+    let winMsg;
+    if      (score1 > score2) winMsg = '🏆  Player 1 wins!';
+    else if (score2 > score1) winMsg = `🏆  ${p2label} wins!`;
+    else                       winMsg = "🤝  It's a draw!";
+
+    // Populate result screen
+    document.getElementById('resultTitle').textContent  = title;
+    document.getElementById('resultWinner').textContent = winMsg;
+    document.getElementById('finalScore1').textContent  = score1;
+    document.getElementById('finalScore2').textContent  = score2;
+
+    // Highlight winner box with green border
+    document.getElementById('resBox1').classList.toggle('winner', score1 > score2);
+    document.getElementById('resBox2').classList.toggle('winner', score2 > score1);
+
+    // Show result screen after a short delay
+    setTimeout(() => showScreen('resultScreen'), 700);
+  }
+
+
+  // ==============================================================
+  // SECTION 18 – HUD MESSAGE
+  // Shows element fact for 2.5 seconds then fades out
+  // ==============================================================
+
+  function showMessage(text) {
+    const el = document.getElementById('hud');
+    el.textContent   = text;
+    el.style.opacity = '1';
+    clearTimeout(hudFadeId);
+    hudFadeId = setTimeout(() => { el.style.opacity = '0'; }, 2500);
+  }
+
+  // Update scoreboard and lives display
+  function refreshHUD() {
+    document.getElementById('score1').textContent = score1;
+    document.getElementById('score2').textContent = score2;
+    document.getElementById('lives1').textContent = '❤️'.repeat(Math.max(0, lives1));
+    document.getElementById('lives2').textContent = '❤️'.repeat(Math.max(0, lives2));
+  }
+
+
+  // ==============================================================
+  // SECTION 19 – SCREEN SWITCHER
+  // Shows one screen, hides all others
+  // ==============================================================
+
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+
+  // ==============================================================
+  // SECTION 20 – UTILITY FUNCTIONS
+  // ==============================================================
+
+  // Random integer: min (inclusive) to max (exclusive)
+  function randomInt(min, max) {
+    return Math.floor(Math.random() * (max - min)) + min;
+  }
+
+  // Draw a rectangle with rounded corners
+  // Used for snake body segments
+  function roundedRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y,     x + w, y + r,     r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x,     y + h, x,     y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x,     y,     x + r, y,         r);
+    ctx.closePath();
+  }
+
+  // Blend two hex colours together
+  // t = 0 returns colorA, t = 1 returns colorB, t = 0.5 is halfway
+  function blendColor(colorA, colorB, t) {
+    const ah = parseInt(colorA.slice(1), 16);
+    const bh = parseInt(colorB.slice(1), 16);
+
+    // Extract R, G, B from each hex colour
+    const ar = (ah >> 16) & 0xff,  ag = (ah >> 8) & 0xff,  ab = ah & 0xff;
+    const br = (bh >> 16) & 0xff,  bg = (bh >> 8) & 0xff,  bb = bh & 0xff;
+
+    // Interpolate each channel
+    const rr = Math.round(ar + (br - ar) * t);
+    const rg = Math.round(ag + (bg - ag) * t);
+    const rb = Math.round(ab + (bb - ab) * t);
+
+    // Convert back to hex string
+    return '#' + [rr, rg, rb].map(v => v.toString(16).padStart(2, '0')).join('');
+  }
+
+  </script>
+</body>
+</html>
